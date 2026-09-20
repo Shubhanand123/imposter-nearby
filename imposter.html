@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Guess the Imposter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --ink:#121319; --ink2:#191b23; --ink3:#20222d; --ink4:#282a37;
+  --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.16);
+  --text:#ece8dc; --text-dim:#9799a6; --text-faint:#5f6270;
+  --gold:#d8ae58; --gold-dim:#8f7538; --gold-soft:rgba(216,174,88,.14);
+  --teal:#3fa796; --teal-soft:rgba(63,167,150,.14);
+  --red:#d6455a; --red-soft:rgba(214,69,90,.14);
+  --radius:14px;
+}
+@media (prefers-color-scheme: light){ :root{ } }
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(216,174,88,.08), transparent 60%),
+    var(--ink);
+  color:var(--text);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+#app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:0 18px 28px;}
+::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:var(--ink4);border-radius:8px;}
+
+/* header / case-file strip */
+.filebar{display:flex;align-items:center;justify-content:space-between;padding:16px 2px 10px;color:var(--text-faint);font-size:11px;letter-spacing:.06em;}
+.filebar .tag{border:1px solid var(--line);border-radius:5px;padding:3px 8px;}
+
+.wordmark{display:flex;align-items:baseline;gap:8px;margin:4px 0 26px;}
+.wordmark h1{font-size:29px;margin:0;font-weight:700;letter-spacing:-.01em;line-height:1;}
+.wordmark span{color:var(--text-faint);font-size:12px;}
+
+.stack{display:flex;flex-direction:column;gap:12px;}
+.grow{flex:1;}
+.row{display:flex;gap:10px;}
+.center{display:flex;flex-direction:column;align-items:center;text-align:center;}
+
+.card{
+  background:linear-gradient(180deg,var(--ink3),var(--ink2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px;
+  position:relative;
+}
+.card.raised{border-color:var(--line-strong);}
+.eyebrow-line{display:flex;align-items:center;gap:10px;color:var(--text-faint);font-size:11.5px;margin-bottom:14px;}
+.eyebrow-line::after{content:"";flex:1;height:1px;background:var(--line);}
+
+h2{font-size:19px;margin:0 0 4px;font-weight:600;}
+p.sub{color:var(--text-dim);font-size:13.5px;line-height:1.5;margin:0 0 16px;}
+
+button{font-family:inherit;cursor:pointer;}
+.btn{
+  appearance:none;border:1px solid var(--line-strong);background:var(--ink4);color:var(--text);
+  padding:13px 16px;border-radius:11px;font-size:14.5px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s ease, background .15s ease, border-color .15s ease;
+  width:100%;
+}
+.btn:active{transform:scale(.97);}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#1b1607;}
+.btn.primary:hover{background:#e2ba69;}
+.btn.ghost{background:transparent;}
+.btn.danger{background:var(--red-soft);border-color:rgba(214,69,90,.4);color:#ffb6c0;}
+.btn.teal{background:var(--teal-soft);border-color:rgba(63,167,150,.45);color:#a9e6da;}
+.btn.small{padding:9px 12px;font-size:12.5px;width:auto;}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+.chip{
+  border:1px solid var(--line-strong);border-radius:20px;padding:8px 13px;font-size:12.5px;
+  background:var(--ink3);color:var(--text-dim);display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  user-select:none;
+}
+.chip.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold);}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px;}
+
+input[type=text],input[type=number],textarea{
+  width:100%;background:var(--ink);border:1px solid var(--line-strong);color:var(--text);
+  border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14.5px;outline:none;
+}
+input:focus,textarea:focus{border-color:var(--gold-dim);}
+textarea{resize:vertical;min-height:70px;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+label.field-label{font-size:11.5px;color:var(--text-faint);letter-spacing:.04em;margin-bottom:6px;display:block;}
+
+.stepper{display:flex;align-items:center;gap:14px;background:var(--ink);border:1px solid var(--line-strong);border-radius:10px;padding:8px 12px;}
+.stepper button{background:var(--ink4);border:1px solid var(--line);color:var(--text);width:30px;height:30px;border-radius:8px;font-size:16px;line-height:1;}
+.stepper .val{flex:1;text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:600;}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 2px;}
+.toggle-row .lbl{font-size:14px;}
+.toggle-row .desc{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.switch{width:42px;height:24px;border-radius:20px;background:var(--ink4);border:1px solid var(--line-strong);position:relative;flex-shrink:0;}
+.switch.on{background:var(--teal-soft);border-color:var(--teal);}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:transform .16s ease, background .16s ease;}
+.switch.on::after{transform:translateX(18px);background:var(--teal);}
+
+.player-row{display:flex;align-items:center;gap:10px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 10px;}
+.player-row .num{width:22px;height:22px;border-radius:50%;background:var(--ink4);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-dim);flex-shrink:0;}
+.player-row input{border:none;background:transparent;padding:2px 0;}
+.player-row button{background:none;border:none;color:var(--text-faint);font-size:15px;padding:4px 6px;}
+
+/* reveal card - perforated case file */
+.reveal-wrap{perspective:1000px;}
+.reveal-card{
+  background:linear-gradient(165deg,var(--ink3),var(--ink2));
+  border:1px solid var(--line-strong);border-radius:18px;padding:34px 22px 26px;
+  min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;
+  position:relative; overflow:hidden;
+}
+.reveal-card::before{
+  content:"";position:absolute;left:0;right:0;bottom:34px;height:1px;
+  background-image:linear-gradient(90deg, var(--line-strong) 55%, transparent 0);
+  background-size:12px 1px; opacity:.6;
+}
+.reveal-card .stamp{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;color:var(--text-faint);
+  border:1px solid var(--line-strong);border-radius:20px;padding:4px 12px;
+}
+.reveal-card .stamp.imposter{color:var(--red);border-color:rgba(214,69,90,.5);}
+.reveal-card .stamp.crew{color:var(--teal);border-color:rgba(63,167,150,.5);}
+.reveal-card .word{font-size:32px;font-weight:700;letter-spacing:-.01em;}
+.reveal-card .category{font-family:'IBM Plex Mono',monospace;color:var(--text-faint);font-size:12px;}
+.reveal-card .hidden-hint{color:var(--text-dim);font-size:13.5px;max-width:280px;line-height:1.5;}
+.blur-veil{position:absolute;inset:0;background:var(--ink2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border-radius:18px;cursor:pointer;}
+.blur-veil .icon{font-family:'IBM Plex Mono',monospace;font-size:34px;color:var(--gold);}
+.blur-veil .txt{font-size:13.5px;color:var(--text-dim);}
+
+.pill-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-faint);border:1px solid var(--line);border-radius:20px;padding:4px 10px;}
+
+/* timer */
+.timer-ring-wrap{display:flex;justify-content:center;padding:6px 0 2px;}
+.timer-num{font-family:'IBM Plex Mono',monospace;font-size:46px;font-weight:600;}
+.timer-num.warn{color:var(--red);}
+
+.order-list{display:flex;flex-direction:column;gap:8px;}
+.order-item{display:flex;align-items:center;gap:10px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;}
+.order-item.active{border-color:var(--gold);background:var(--gold-soft);}
+.order-item .dot{width:8px;height:8px;border-radius:50%;background:var(--text-faint);flex-shrink:0;}
+.order-item.active .dot{background:var(--gold);}
+
+.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.vote-card{background:var(--ink);border:1px solid var(--line-strong);border-radius:12px;padding:16px 10px;text-align:center;font-weight:600;font-size:14px;}
+.vote-card.picked{border-color:var(--gold);background:var(--gold-soft);color:var(--gold);}
+
+.result-line{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13.5px;}
+.result-line:last-child{border-bottom:none;}
+.result-line .k{color:var(--text-dim);}
+.result-line .v{font-family:'IBM Plex Mono',monospace;}
+
+.hist-row{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);font-size:12.5px;}
+.hist-row:last-child{border-bottom:none;}
+.hist-row .k{color:var(--text-dim);}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:2px 7px;border-radius:20px;border:1px solid var(--line-strong);}
+.badge.win{color:var(--teal);border-color:rgba(63,167,150,.5);}
+.badge.loss{color:var(--red);border-color:rgba(214,69,90,.5);}
+
+.nav-back{display:flex;align-items:center;gap:6px;color:var(--text-dim);font-size:13px;background:none;border:none;padding:8px 2px;margin-bottom:2px;align-self:flex-start;}
+.nav-back:active{opacity:.6;}
+
+.code-display{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:600;letter-spacing:.12em;text-align:center;color:var(--gold);}
+#qr-box{display:flex;justify-content:center;margin:14px 0 4px;}
+#qr-box canvas, #qr-box img{border-radius:10px;}
+
+.online-player{display:flex;align-items:center;gap:10px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13.5px;}
+.online-player .avatar{width:24px;height:24px;border-radius:50%;background:var(--ink4);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--gold);flex-shrink:0;}
+.online-player .you{color:var(--text-faint);font-size:11px;margin-left:auto;font-family:'IBM Plex Mono',monospace;}
+
+.empty{text-align:center;color:var(--text-faint);font-size:13px;padding:20px 0;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink4);border:1px solid var(--line-strong);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line-strong);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+a.link-btn{color:var(--gold);text-decoration:none;font-size:13px;}
+.skipbar{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--text-faint);padding:0 2px;}
+
+/* nearby play */
+.seg{display:flex;background:var(--ink);border:1px solid var(--line-strong);border-radius:11px;padding:3px;gap:3px;margin-bottom:14px;}
+.seg button{flex:1;appearance:none;border:none;background:transparent;color:var(--text-dim);padding:9px 8px;border-radius:8px;font-size:13.5px;font-weight:600;}
+.seg button.on{background:var(--gold-soft);color:var(--gold);}
+.tag.net-ok{color:var(--teal);border-color:rgba(63,167,150,.4);}
+.tag.net-bad{color:var(--red);border-color:rgba(214,69,90,.4);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-host"></div>
+<script>
+/* ============================== WORD PACKS ============================== */
+const PACKS = {
+  objects:{name:"Everyday Objects", words:["Umbrella","Backpack","Toothbrush","Candle","Mirror","Stapler","Pillow","Wallet","Ladder","Kettle","Flashlight","Blanket","Scissors","Doormat","Suitcase","Clipboard","Thermos","Keychain","Broom","Lamp","Charger","Notebook"]},
+  animals:{name:"Animals", words:["Octopus","Penguin","Cheetah","Kangaroo","Flamingo","Otter","Hedgehog","Peacock","Raccoon","Dolphin","Camel","Sloth","Owl","Bison","Jellyfish","Platypus","Toucan","Wolf","Squirrel","Gecko","Walrus","Falcon"]},
+  food:{name:"Food & Drink", words:["Pizza","Sushi","Mango","Tacos","Ramen","Croissant","Popcorn","Curry","Lemonade","Dumplings","Waffles","Espresso","Pretzel","Burrito","Gelato","Falafel","Milkshake","Pancakes","Kimchi","Nachos","Honey","Biscuits"]},
+  tropes:{name:"Story Tropes", words:["Plot Twist","Love Triangle","Chosen One","Secret Identity","Time Loop","Evil Twin","Fake Dating","Long-Lost Sibling","Heist Gone Wrong","Amnesia","Prophecy","Rival Turned Ally","Villain Origin","Undercover Cop","Coming of Age","Betrayal","Redemption Arc","Cliffhanger"]},
+  sports:{name:"Sports", words:["Basketball","Surfing","Archery","Rugby","Gymnastics","Badminton","Fencing","Rowing","Skateboarding","Wrestling","Bowling","Cricket","Snowboarding","Volleyball","Boxing","Climbing","Table Tennis","Marathon","Golf","Hockey"]},
+  house:{name:"Around the House", words:["Attic","Garage","Balcony","Basement","Hallway","Chimney","Doorbell","Windowsill","Staircase","Pantry","Fireplace","Garden Hose","Mailbox","Thermostat","Skylight","Porch","Closet","Fence","Driveway","Curtains"]},
+  travel:{name:"Travel & Places", words:["Airport","Lighthouse","Waterfall","Campsite","Train Station","Desert Oasis","Mountain Pass","Harbor","Rainforest","Volcano","Castle","Market Square","Ski Resort","Canyon","Island","Cave","Vineyard","Glacier","Boardwalk","Safari"]},
+  jobs:{name:"Jobs & Workplace", words:["Electrician","Librarian","Surgeon","Pilot","Florist","Detective","Architect","Barista","Accountant","Lifeguard","Journalist","Plumber","Chef","Astronaut","Tailor","Paramedic","Zookeeper","Locksmith","Referee","Translator"]},
+  fantasy:{name:"Fantasy & Myth", words:["Dragon","Wizard","Enchanted Forest","Sorceress","Griffin","Potion","Castle Moat","Ogre","Fairy Ring","Sword in Stone","Mermaid","Oracle","Goblin","Phoenix","Spellbook","Kraken","Unicorn","Cursed Ring"]},
+  scifi:{name:"Sci-Fi & Space", words:["Spaceship","Black Hole","Robot","Wormhole","Alien Signal","Cryo Chamber","Space Station","Laser","Android","Asteroid Belt","Teleporter","Rover","Satellite","Hologram","Escape Pod","Nebula","Time Machine","Mothership"]},
+  kids:{name:"Kids Mode", words:["Balloon","Ice Cream","Puppy","Rainbow","Slide","Teddy Bear","Bubble","Crayon","Sandcastle","Tricycle","Kite","Sticker","Jungle Gym","Lollipop","Superhero Cape","Bath Toy","Storybook","Treehouse"]},
+  couples:{name:"Couples Mode", words:["First Date","Slow Dance","Love Letter","Anniversary","Candlelit Dinner","Road Trip","Matching Outfits","Proposal","Long Distance","Movie Night","Cooking Together","Honeymoon","Inside Joke","Karaoke Duet","Surprise Gift","Sunset Walk"]},
+  festival:{name:"Festivals & Holidays", words:["Diwali","Lunar New Year","Carnival","Halloween","Oktoberfest","Day of the Dead","Eid","Christmas","Holi","Thanksgiving","Bonfire Night","Mardi Gras","Hanukkah","Songkran","New Year's Eve","Harvest Festival"]},
+  school:{name:"School Days", words:["Pop Quiz","Detention","Science Fair","Field Trip","Group Project","Locker","Cafeteria Tray","Report Card","Recess","Homeroom","Yearbook","Spelling Bee","School Play","Graduation Cap","Substitute Teacher","Hall Pass"]},
+  workplace:{name:"Office Life", words:["Water Cooler","Deadline","Conference Call","Sticky Note","Coffee Machine","Performance Review","Swivel Chair","Parking Spot","Office Party","Elevator Small Talk","Whiteboard","Stapler Jam","Casual Friday","Spam Folder","Standing Desk"]}
+};
+const DEFAULT_PACKS = ["objects","animals","food","tropes"];
+
+/* ============================== STORAGE ============================== */
+const LS_KEY = "imposter_v1_";
+function lsGet(k, fallback){ try{ const v = localStorage.getItem(LS_KEY+k); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function lsSet(k, v){ try{ localStorage.setItem(LS_KEY+k, JSON.stringify(v)); }catch(e){} }
+
+/* ============================== SOUND / HAPTICS ============================== */
+let actx=null;
+function beep(freq=440, dur=0.09, type='sine', gain=0.05, delay=0){
+  if(!state.settings.sound) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const t0 = actx.currentTime+delay;
+    const osc = actx.createOscillator(); const g = actx.createGain();
+    osc.type=type; osc.frequency.setValueAtTime(freq,t0);
+    g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(gain,t0+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    osc.connect(g); g.connect(actx.destination); osc.start(t0); osc.stop(t0+dur+0.02);
+  }catch(e){}
+}
+const SFX = {
+  reveal:()=>beep(520,.12,'triangle',.05),
+  tick:()=>beep(880,.05,'square',.03),
+  warn:()=>beep(220,.15,'sawtooth',.04),
+  correct:()=>{beep(523,.1,'sine',.05,0);beep(659,.1,'sine',.05,.09);beep(784,.16,'sine',.06,.18);},
+  wrong:()=>{beep(300,.15,'sawtooth',.05,0);beep(180,.22,'sawtooth',.05,.12);},
+  select:()=>beep(660,.05,'triangle',.03),
+};
+function haptic(pattern){ if(!state.settings.haptics) return; try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
+
+function toast(msg){
+  const host = document.getElementById('toast-host');
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg;
+  host.appendChild(el); setTimeout(()=>el.remove(), 2600);
+}
+
+/* ============================== STATE ============================== */
+const state = {
+  screen:'home',
+  settings: lsGet('settings', {sound:true, haptics:true}),
+  stats: lsGet('stats', {games:0, imposterWins:0, crewWins:0}),
+  history: lsGet('history', []),
+  customPacks: lsGet('customPacks', []),
+  setup: {
+    packKeys: lsGet('lastPacks', DEFAULT_PACKS.slice()),
+    imposterCount:1, doubleAgent:false, skipsAllowed:2, discussionSeconds:90,
+    players: lsGet('lastPlayers', ["Player 1","Player 2","Player 3"]).map((n,i)=>({id:'p'+i,name:n}))
+  },
+  local: null,
+  online: { cap:null, dbCap:null, userCap:null, sampleCap:null, roomCode:null, uid:null, isHost:false,
+    players:[], roomDoc:null, myAssignment:null, unsub:[], joinCodeInput:'', busy:false },
+  ui: { newPackName:'', newPackWords:'', genreTopic:'', genLoading:false, timerHandle:null, timerLeft:0 }
+};
+
+function setScreen(s){
+  if(s!=='discuss' && state.ui.timerHandle){ clearInterval(state.ui.timerHandle); state.ui.timerHandle=null; }
+  state.screen=s; render(); window.scrollTo(0,0);
+}
+
+/* ============================== GAME LOGIC HELPERS ============================== */
+function activeWordPool(){
+  const pool=[];
+  state.setup.packKeys.forEach(k=>{
+    const p = PACKS[k] || (state.customPacks.find(c=>c.id===k));
+    if(p) pool.push(...p.words.map(w=>({word:w, cat:p.name})));
+  });
+  return pool.length ? pool : [{word:"Coffee",cat:"Default"}];
+}
+function pickWord(){ const pool = activeWordPool(); return pool[Math.floor(Math.random()*pool.length)]; }
+function shuffled(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function roomCodeGen(){ const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
+
+function assignLocalRound(){
+  const players = state.setup.players;
+  const n = players.length;
+  const impCount = Math.min(state.setup.imposterCount, Math.max(1,n-1));
+  const order = shuffled(players.map(p=>p.id));
+  const imposterIds = order.slice(0, impCount);
+  const {word, cat} = pickWord();
+  const assignments = {};
+  players.forEach(p=>{
+    const isImp = imposterIds.includes(p.id);
+    assignments[p.id] = {
+      isImposter:isImp,
+      word: isImp ? null : word,
+      category: cat,
+      partnerIds: (isImp && state.setup.doubleAgent) ? imposterIds.filter(id=>id!==p.id) : []
+    };
+  });
+  state.local = {
+    phase:'reveal',
+    revealOrder: shuffled(players.map(p=>p.id)),
+    revealIndex:0,
+    revealed:false,
+    assignments, imposterIds, roundWord:word, roundCategory:cat,
+    skipsUsed: Object.fromEntries(players.map(p=>[p.id,0])),
+    turnOrder: shuffled(players.map(p=>p.id)),
+    turnIndex:0,
+    votes:{}, voteIndex:0,
+    voteOrder: shuffled(players.map(p=>p.id)),
+  };
+}
+
+function pushHistory(entry){
+  state.history.unshift(entry);
+  if(state.history.length>25) state.history.pop();
+  lsSet('history', state.history);
+  lsSet('stats', state.stats);
+}
+
+/* ============================== RENDER ROOT ============================== */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = SCREENS[state.screen] ? SCREENS[state.screen]() : SCREENS.home();
+  AFTER_RENDER[state.screen] && AFTER_RENDER[state.screen]();
+}
+const AFTER_RENDER = {};
+
+/* ============================== SCREENS ============================== */
+const SCREENS = {};
+
+SCREENS.home = () => `
+  <div class="filebar"><span>CASE FILE · ${state.history.length ? '#'+String(state.stats.games).padStart(3,'0') : 'NEW'}</span><span class="tag">${state.stats.games} rounds logged</span></div>
+  <div class="wordmark"><h1>Guess the Imposter</h1></div>
+  <div class="stack">
+    <button class="btn primary" data-action="go-setup" data-mode="local" style="padding:18px;">Pass &amp; Play</button>
+    <button class="btn teal" data-action="go-nearby" style="padding:18px;">Nearby Play · WiFi / Bluetooth</button>
+    ${typeof claude!=='undefined' ? '<button class="btn ghost" data-action="go-online">Play Online (Claude)</button>' : ''}
+    <div class="row">
+      <button class="btn ghost grow" data-action="go" data-screen="packs">Word Packs</button>
+      <button class="btn ghost grow" data-action="go" data-screen="history">History</button>
+    </div>
+    <button class="btn ghost" data-action="go" data-screen="settings">Settings</button>
+  </div>
+  <div class="card" style="margin-top:18px;">
+    <div class="eyebrow-line">How it plays</div>
+    <p class="sub" style="margin-bottom:0;">Everyone gets the same secret word — except the imposter(s), who get nothing. Take turns dropping a clue about the word without saying it. Then vote out who you think is faking it.</p>
+  </div>
+`;
+
+/* ---------- SETUP ---------- */
+SCREENS.setup = () => {
+  const s = state.setup;
+  const packOptions = Object.entries(PACKS).map(([k,p])=>`<div class="chip ${s.packKeys.includes(k)?'on':''}" data-action="toggle-pack" data-key="${k}">${p.name}</div>`).join('') +
+    state.customPacks.map(c=>`<div class="chip ${s.packKeys.includes(c.id)?'on':''}" data-action="toggle-pack" data-key="${c.id}">${c.name}</div>`).join('');
+  return `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Round Setup</h2><p class="sub">Pick your packs, players, and rules.</p>
+  <div class="stack">
+    <div class="card">
+      <div class="eyebrow-line">Word packs</div>
+      <div class="chip-wrap">${packOptions}</div>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Players (${s.players.length})</div>
+      <div class="stack" id="player-list">
+        ${s.players.map((p,i)=>`
+          <div class="player-row">
+            <div class="num">${i+1}</div>
+            <input type="text" value="${p.name.replace(/"/g,'&quot;')}" data-action="edit-player" data-id="${p.id}" placeholder="Name">
+            ${s.players.length>3 ? `<button data-action="remove-player" data-id="${p.id}">✕</button>` : ''}
+          </div>`).join('')}
+      </div>
+      <button class="btn ghost small" style="margin-top:10px;" data-action="add-player">+ Add player</button>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Rules</div>
+      <div class="toggle-row"><div><div class="lbl">Imposters</div><div class="desc">How many players don't get the word</div></div>
+        <div class="stepper" style="width:110px;"><button data-action="imp-dec">−</button><div class="val">${s.imposterCount}</div><button data-action="imp-inc">+</button></div>
+      </div>
+      <div class="toggle-row"><div><div class="lbl">Double agent mode</div><div class="desc">Imposters secretly know each other</div></div>
+        <div class="switch ${s.doubleAgent?'on':''}" data-action="toggle-double"></div>
+      </div>
+      <div class="toggle-row"><div><div class="lbl">Skips per player</div><div class="desc">Reroll word or skip a turn</div></div>
+        <div class="stepper" style="width:110px;"><button data-action="skip-dec">−</button><div class="val">${s.skipsAllowed}</div><button data-action="skip-inc">+</button></div>
+      </div>
+      <div class="toggle-row"><div><div class="lbl">Discussion timer</div><div class="desc">Seconds before voting opens</div></div>
+        <div class="stepper" style="width:110px;"><button data-action="time-dec">−</button><div class="val">${s.discussionSeconds}s</div><button data-action="time-inc">+</button></div>
+      </div>
+    </div>
+    <button class="btn primary" data-action="start-local" style="padding:16px;">Start Round</button>
+  </div>`;
+};
+
+/* ---------- WORD PACKS ---------- */
+SCREENS.packs = () => `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Word Packs</h2><p class="sub">Built-in genres, plus your own.</p>
+  <div class="stack">
+    <div class="card">
+      <div class="eyebrow-line">Generate a pack with AI</div>
+      <p class="sub">Type a theme — say "K-pop" or "80s road trip" — and get a fresh pack of words.</p>
+      <div class="row">
+        <input type="text" class="grow" placeholder="e.g. Deep sea creatures" data-action="genre-topic" value="${state.ui.genreTopic.replace(/"/g,'&quot;')}">
+        <button class="btn primary small" data-action="generate-pack" ${state.ui.genLoading?'disabled':''}>${state.ui.genLoading?'<span class="spin"></span>':'Generate'}</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Custom pack</div>
+      <label class="field-label">Pack name</label>
+      <input type="text" placeholder="Office Inside Jokes" data-action="edit-newpack-name" value="${state.ui.newPackName.replace(/"/g,'&quot;')}" style="margin-bottom:10px;">
+      <label class="field-label">Words, comma separated</label>
+      <textarea placeholder="Printer jam, Casual Friday, ..." data-action="edit-newpack-words">${state.ui.newPackWords}</textarea>
+      <button class="btn teal small" style="margin-top:10px;" data-action="save-custom-pack">Save pack</button>
+    </div>
+    ${state.customPacks.length ? `<div class="card"><div class="eyebrow-line">Your packs</div>
+      ${state.customPacks.map(c=>`<div class="result-line"><span class="k">${c.name} · ${c.words.length} words</span><button class="btn ghost small" data-action="delete-pack" data-id="${c.id}">Delete</button></div>`).join('')}
+    </div>`:''}
+    <div class="card">
+      <div class="eyebrow-line">Built-in genres</div>
+      ${Object.values(PACKS).map(p=>`<div class="result-line"><span class="k">${p.name}</span><span class="v" style="color:var(--text-faint);">${p.words.length}</span></div>`).join('')}
+    </div>
+  </div>
+`;
+
+/* ---------- SETTINGS ---------- */
+SCREENS.settings = () => `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Settings</h2><p class="sub">Saved on this device.</p>
+  <div class="card stack">
+    <div class="toggle-row"><div class="lbl">Sound effects</div><div class="switch ${state.settings.sound?'on':''}" data-action="toggle-sound"></div></div>
+    <div class="toggle-row"><div class="lbl">Haptics</div><div class="switch ${state.settings.haptics?'on':''}" data-action="toggle-haptics"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <div class="eyebrow-line">All-time</div>
+    <div class="result-line"><span class="k">Rounds played</span><span class="v">${state.stats.games}</span></div>
+    <div class="result-line"><span class="k">Crew wins</span><span class="v">${state.stats.crewWins}</span></div>
+    <div class="result-line"><span class="k">Imposter wins</span><span class="v">${state.stats.imposterWins}</span></div>
+  </div>
+`;
+
+/* ---------- HISTORY ---------- */
+SCREENS.history = () => `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Round History</h2><p class="sub">Last ${state.history.length} rounds on this device.</p>
+  <div class="card">
+    ${state.history.length ? state.history.map(h=>`
+      <div class="hist-row">
+        <span class="k">${h.pack} · <span class="mono">${h.word}</span></span>
+        <span class="badge ${h.crewWon?'win':'loss'}">${h.crewWon?'Crew won':'Imposter won'}</span>
+      </div>`).join('') : `<div class="empty">No rounds yet — play one!</div>`}
+  </div>
+`;
+
+/* ---------- LOCAL: REVEAL ---------- */
+SCREENS.reveal = () => {
+  const L = state.local; const pid = L.revealOrder[L.revealIndex]; const player = state.setup.players.find(p=>p.id===pid);
+  const a = L.assignments[pid];
+  const isLast = L.revealIndex === L.revealOrder.length-1;
+  const skipsLeft = state.setup.skipsAllowed - L.skipsUsed[pid];
+  return `
+  <div class="filebar"><span>PLAYER ${L.revealIndex+1} / ${L.revealOrder.length}</span><span class="tag">${skipsLeft} skip${skipsLeft==1?'':'s'} left</span></div>
+  <h2 style="text-align:center;">${player.name}, hand-off time</h2>
+  <p class="sub" style="text-align:center;">Pass the device to <b style="color:var(--text);">${player.name}</b>, then they tap to reveal.</p>
+  <div class="reveal-wrap card raised" style="padding:0;">
+    <div class="reveal-card">
+      ${!L.revealed ? `
+        <div class="blur-veil" data-action="reveal-word">
+          <div class="icon">◇</div>
+          <div class="txt">Tap to view your word</div>
+        </div>` : ''}
+      <div class="stamp ${a.isImposter?'imposter':'crew'}">${a.isImposter?'You are the imposter':'You are on the crew'}</div>
+      ${a.isImposter ? `
+        <div class="hidden-hint">You don't get the word. Listen closely, blend in, and try to guess it before you're caught.</div>
+        ${a.partnerIds.length ? `<div class="hidden-hint" style="color:var(--gold);">Your fellow imposter: ${a.partnerIds.map(id=>state.setup.players.find(p=>p.id===id).name).join(', ')}</div>` : ''}
+      ` : `
+        <div class="word mono">${a.word}</div>
+        <div class="category">${a.category}</div>
+      `}
+    </div>
+  </div>
+  <div class="stack" style="margin-top:16px;">
+    ${L.revealed ? `<button class="btn ghost small" data-action="reroll-word" ${skipsLeft<=0?'disabled':''}>Reroll my word (${skipsLeft} left)</button>` : ''}
+    <button class="btn primary" data-action="next-reveal" ${!L.revealed?'disabled':''} style="padding:15px;">${isLast ? "Everyone's seen it — start discussion" : "I've got it, next player"}</button>
+  </div>`;
+};
+
+/* ---------- LOCAL: DISCUSS ---------- */
+SCREENS.discuss = () => {
+  const L = state.local;
+  const curId = L.turnOrder[L.turnIndex]; const cur = state.setup.players.find(p=>p.id===curId);
+  return `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Abandon round</button>
+  <div class="filebar"><span>DISCUSSION</span><span class="tag">${L.roundCategory}</span></div>
+  <h2 style="text-align:center;">Describe your word — don't say it</h2>
+  <div class="card raised center" style="padding:26px 18px;">
+    <div class="timer-ring-wrap"><div class="timer-num ${state.ui.timerLeft<=10?'warn':''}">${String(Math.floor(state.ui.timerLeft/60)).padStart(1,'0')}:${String(state.ui.timerLeft%60).padStart(2,'0')}</div></div>
+    <p class="sub" style="margin:6px 0 0;">Time to talk it out. Go around and each give one clue.</p>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Turn order</div>
+    <div class="order-list">
+      ${L.turnOrder.map((id,i)=>{const p=state.setup.players.find(x=>x.id===id); return `<div class="order-item ${i===L.turnIndex?'active':''}"><div class="dot"></div>${p.name}</div>`;}).join('')}
+    </div>
+    <div class="skipbar" style="margin-top:10px;">
+      <span>${cur.name}'s turn</span>
+      <button class="btn ghost small" data-action="skip-turn" data-id="${curId}" ${(state.setup.skipsAllowed-L.skipsUsed[curId])<=0?'disabled':''}>Skip turn (${state.setup.skipsAllowed-L.skipsUsed[curId]} left)</button>
+    </div>
+    <button class="btn ghost small" style="margin-top:8px;width:100%;" data-action="advance-turn">Next player's turn →</button>
+  </div>
+  <button class="btn primary" style="margin-top:16px;padding:15px;" data-action="go-vote">Open voting now</button>
+  `;
+};
+AFTER_RENDER.discuss = () => {
+  if(state.ui.timerHandle) return;
+  state.ui.timerHandle = setInterval(()=>{
+    state.ui.timerLeft--;
+    if(state.ui.timerLeft<=10 && state.ui.timerLeft>0) SFX.tick();
+    if(state.ui.timerLeft<=0){ clearInterval(state.ui.timerHandle); state.ui.timerHandle=null; SFX.warn(); haptic([80,60,80]); setScreen('vote'); return; }
+    document.querySelectorAll('.timer-num').forEach(el=>{
+      el.textContent = `${String(Math.floor(state.ui.timerLeft/60)).padStart(1,'0')}:${String(state.ui.timerLeft%60).padStart(2,'0')}`;
+      el.classList.toggle('warn', state.ui.timerLeft<=10);
+    });
+  },1000);
+};
+
+/* ---------- LOCAL: VOTE (secret sequential ballot) ---------- */
+SCREENS.vote = () => {
+  const L = state.local;
+  const voterId = L.voteOrder[L.voteIndex]; const voter = state.setup.players.find(p=>p.id===voterId);
+  const done = L.voteIndex >= L.voteOrder.length;
+  if(done) return renderTally();
+  const choices = state.setup.players.filter(p=>p.id!==voterId);
+  return `
+  <div class="filebar"><span>SECRET BALLOT</span><span class="tag">${L.voteIndex+1} / ${L.voteOrder.length}</span></div>
+  <h2 style="text-align:center;">${voter.name}, who's the imposter?</h2>
+  <p class="sub" style="text-align:center;">Only you should be looking right now.</p>
+  <div class="vote-grid">
+    ${choices.map(p=>`<div class="vote-card ${L.votes[voterId]===p.id?'picked':''}" data-action="pick-vote" data-target="${p.id}">${p.name}</div>`).join('')}
+  </div>
+  <button class="btn primary" style="margin-top:18px;padding:15px;" data-action="confirm-vote" ${!L.votes[voterId]?'disabled':''}>Lock in vote</button>
+  `;
+};
+function renderTally(){
+  const L = state.local;
+  const tally = {};
+  Object.values(L.votes).forEach(t=>tally[t]=(tally[t]||0)+1);
+  const maxVotes = Math.max(0,...Object.values(tally));
+  const accused = Object.keys(tally).filter(id=>tally[id]===maxVotes);
+  const correctlyCaught = accused.length===1 && L.imposterIds.includes(accused[0]) && L.imposterIds.length===1;
+  const partialCatch = accused.some(id=>L.imposterIds.includes(id));
+  const crewWon = L.imposterIds.length===1 ? (accused.length===1 && L.imposterIds.includes(accused[0])) : (L.imposterIds.every(id=>accused.includes(id)) && accused.length===L.imposterIds.length);
+  if(!state.local.tallied){
+    state.local.tallied = true; state.local.crewWon = crewWon; state.local.accusedIds = accused;
+    state.stats.games++; if(crewWon) state.stats.crewWins++; else state.stats.imposterWins++;
+    pushHistory({date:Date.now(), pack:L.roundCategory, word:L.roundWord, crewWon, imposters: L.imposterIds.map(id=>state.setup.players.find(p=>p.id===id).name)});
+    crewWon ? SFX.correct() : SFX.wrong();
+    haptic(crewWon ? [40,40,40] : [200]);
+  }
+  return `
+  <div class="filebar"><span>RESULTS</span></div>
+  <h2 style="text-align:center;">${state.local.crewWon ? "The crew got it!" : "The imposter got away"}</h2>
+  <div class="card raised" style="margin-top:8px;">
+    <div class="result-line"><span class="k">Secret word</span><span class="v mono">${state.local.roundWord}</span></div>
+    <div class="result-line"><span class="k">Imposter${L.imposterIds.length>1?'s':''}</span><span class="v">${L.imposterIds.map(id=>state.setup.players.find(p=>p.id===id).name).join(', ')}</span></div>
+    <div class="result-line"><span class="k">Most accused</span><span class="v">${state.local.accusedIds.map(id=>state.setup.players.find(p=>p.id===id).name).join(', ')||'No votes'}</span></div>
+  </div>
+  <div class="stack" style="margin-top:16px;">
+    <button class="btn primary" style="padding:15px;" data-action="play-again">Play another round</button>
+    <button class="btn ghost" data-action="go" data-screen="home">Back to home</button>
+  </div>`;
+}
+
+/* ---------- ONLINE ---------- */
+SCREENS.online = () => {
+  const o = state.online;
+  return `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Play Online</h2>
+  <p class="sub">Each player joins from their own device using a room code. Requires everyone to open this same page while signed in to Claude.</p>
+  <div class="stack">
+    <div class="card">
+      <div class="eyebrow-line">Host a room</div>
+      <button class="btn primary" data-action="create-room" ${o.busy?'disabled':''} style="padding:14px;">${o.busy?'<span class="spin"></span> Creating…':'Create room'}</button>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Join a room</div>
+      <div class="row">
+        <input type="text" class="grow mono" maxlength="4" placeholder="CODE" style="text-transform:uppercase;letter-spacing:.2em;" data-action="edit-join-code" value="${o.joinCodeInput}">
+        <button class="btn teal small" data-action="join-room" ${o.busy?'disabled':''}>Join</button>
+      </div>
+    </div>
+  </div>
+  `;
+};
+
+SCREENS.lobby = () => {
+  const o = state.online; const rd = o.roomDoc || {};
+  return `
+  <div class="filebar"><span>ROOM</span><span class="tag" data-action="leave-room" style="cursor:pointer;">Leave</span></div>
+  <div class="card raised center">
+    <div class="code-display">${o.roomCode}</div>
+    <div id="qr-box"></div>
+    <p class="sub" style="margin:6px 0 0;">Share this code — or the QR — with everyone playing.</p>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Players (${o.players.length})</div>
+    <div class="stack">
+      ${o.players.length ? o.players.map(p=>`<div class="online-player"><div class="avatar">${(p.name||'?')[0].toUpperCase()}</div>${p.name||'Joining…'}${p.uid===o.uid?'<span class="you">YOU</span>':''}${rd.hostId===p.uid?'<span class="you">HOST</span>':''}</div>`).join('') : `<div class="empty">Waiting for players…</div>`}
+    </div>
+  </div>
+  ${o.isHost ? `
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Round settings</div>
+    <div class="chip-wrap">${Object.entries(PACKS).map(([k,p])=>`<div class="chip ${(rd.packKeys||DEFAULT_PACKS).includes(k)?'on':''}" data-action="online-toggle-pack" data-key="${k}">${p.name}</div>`).join('')}</div>
+    <div class="toggle-row"><div class="lbl">Imposters</div><div class="stepper" style="width:110px;"><button data-action="online-imp-dec">−</button><div class="val">${rd.imposterCount||1}</div><button data-action="online-imp-inc">+</button></div></div>
+    <div class="toggle-row"><div class="lbl">Double agent</div><div class="switch ${rd.doubleAgent?'on':''}" data-action="online-toggle-double"></div></div>
+    <button class="btn primary" style="margin-top:10px;padding:15px;" data-action="online-start-round" ${o.players.length<3?'disabled':''}>${o.players.length<3?'Need 3+ players':'Start round'}</button>
+  </div>` : `<div class="card" style="margin-top:14px;text-align:center;color:var(--text-dim);font-size:13px;">Waiting for the host to start the round…</div>`}
+  `;
+};
+AFTER_RENDER.lobby = () => {
+  const box = document.getElementById('qr-box');
+  if(box && window.QRCode && state.online.roomCode){
+    box.innerHTML='';
+    try{ new QRCode(box, {text: location.href.split('#')[0] + '#room=' + state.online.roomCode, width:132, height:132, colorDark:"#12131a", colorLight:"#ece8dc"}); }catch(e){}
+  }
+};
+
+SCREENS.onlineReveal = () => {
+  const o = state.online; const a = o.myAssignment || {};
+  return `
+  <div class="filebar"><span>YOUR CARD</span><span class="tag">${o.roomCode}</span></div>
+  <h2 style="text-align:center;">Round ${o.roomDoc?.round||1}</h2>
+  <div class="reveal-wrap card raised" style="padding:0;">
+    <div class="reveal-card">
+      ${!state.ui.onlineRevealed ? `<div class="blur-veil" data-action="reveal-online-word"><div class="icon">◇</div><div class="txt">Tap to view your word</div></div>` : ''}
+      <div class="stamp ${a.isImposter?'imposter':'crew'}">${a.isImposter?'You are the imposter':'You are on the crew'}</div>
+      ${a.isImposter ? `
+        <div class="hidden-hint">Blend in — you don't have the word.</div>
+        ${a.partnerNames && a.partnerNames.length ? `<div class="hidden-hint" style="color:var(--gold);">Fellow imposter: ${a.partnerNames.join(', ')}</div>` : ''}
+      ` : `<div class="word mono">${a.word||'—'}</div><div class="category">${a.category||''}</div>`}
+    </div>
+  </div>
+  <p class="sub" style="text-align:center;margin-top:14px;">Discuss out loud together, then vote when ready.</p>
+  ${o.isHost ? `<button class="btn primary" style="padding:15px;" data-action="online-go-vote">Open voting</button>` : `<div class="empty">Waiting for the host to open voting…</div>`}
+  `;
+};
+
+SCREENS.onlineVote = () => {
+  const o = state.online; const rd = o.roomDoc||{};
+  const myVote = (rd.votes||{})[o.uid];
+  return `
+  <div class="filebar"><span>VOTE</span><span class="tag">${o.roomCode}</span></div>
+  <h2 style="text-align:center;">Who's the imposter?</h2>
+  <div class="vote-grid">
+    ${o.players.map(p=>`<div class="vote-card ${myVote===p.uid?'picked':''}" data-action="online-pick-vote" data-target="${p.uid}">${p.name}</div>`).join('')}
+  </div>
+  <p class="sub" style="text-align:center;margin-top:12px;">${Object.keys(rd.votes||{}).length} / ${o.players.length} voted</p>
+  ${o.isHost ? `<button class="btn primary" style="padding:15px;" data-action="online-finish-vote">Reveal results</button>` : ''}
+  `;
+};
+
+SCREENS.onlineResults = () => {
+  const o = state.online; const rd = o.roomDoc||{};
+  const crewWon = rd.lastResult?.crewWon;
+  return `
+  <div class="filebar"><span>RESULTS</span><span class="tag">${o.roomCode}</span></div>
+  <h2 style="text-align:center;">${crewWon===undefined?'Tallying…':(crewWon?"The crew got it!":"The imposter got away")}</h2>
+  <div class="card raised" style="margin-top:8px;">
+    <div class="result-line"><span class="k">Secret word</span><span class="v mono">${rd.lastResult?.word||'—'}</span></div>
+    <div class="result-line"><span class="k">Imposter(s)</span><span class="v">${(rd.lastResult?.imposterNames||[]).join(', ')}</span></div>
+  </div>
+  ${o.isHost ? `<button class="btn primary" style="margin-top:16px;padding:15px;" data-action="online-start-round">Play another round</button>` : `<div class="empty" style="margin-top:16px;">Waiting for the host…</div>`}
+  <button class="btn ghost" style="margin-top:10px;" data-action="leave-room">Leave room</button>
+  `;
+};
+
+/* ============================== ACTIONS ============================== */
+const actions = {
+  'go': (d)=> setScreen(d.screen),
+  'go-setup': ()=> setScreen('setup'),
+  'go-online': ()=> setScreen('online'),
+
+  'toggle-pack': (d)=>{ const k=d.key; const i=state.setup.packKeys.indexOf(k); if(i>-1) state.setup.packKeys.splice(i,1); else state.setup.packKeys.push(k); lsSet('lastPacks', state.setup.packKeys); render(); },
+  'add-player': ()=>{ state.setup.players.push({id:'p'+Date.now(), name:'Player '+(state.setup.players.length+1)}); render(); },
+  'remove-player': (d)=>{ state.setup.players = state.setup.players.filter(p=>p.id!==d.id); render(); },
+  'imp-inc': ()=>{ state.setup.imposterCount = Math.min(state.setup.imposterCount+1, Math.max(1,state.setup.players.length-1)); render(); },
+  'imp-dec': ()=>{ state.setup.imposterCount = Math.max(1, state.setup.imposterCount-1); render(); },
+  'skip-inc': ()=>{ state.setup.skipsAllowed = Math.min(5, state.setup.skipsAllowed+1); render(); },
+  'skip-dec': ()=>{ state.setup.skipsAllowed = Math.max(0, state.setup.skipsAllowed-1); render(); },
+  'time-inc': ()=>{ state.setup.discussionSeconds = Math.min(300, state.setup.discussionSeconds+15); render(); },
+  'time-dec': ()=>{ state.setup.discussionSeconds = Math.max(15, state.setup.discussionSeconds-15); render(); },
+  'toggle-double': ()=>{ state.setup.doubleAgent = !state.setup.doubleAgent; render(); },
+
+  'start-local': ()=>{
+    if(state.setup.players.some(p=>!p.name.trim())){ toast('Give every player a name'); return; }
+    if(!state.setup.packKeys.length){ toast('Pick at least one word pack'); return; }
+    lsSet('lastPlayers', state.setup.players.map(p=>p.name));
+    assignLocalRound(); SFX.select(); setScreen('reveal');
+  },
+  'reveal-word': ()=>{ state.local.revealed=true; SFX.reveal(); haptic([30]); render(); },
+  'reroll-word': ()=>{
+    const L=state.local; const pid=L.revealOrder[L.revealIndex];
+    if(L.skipsUsed[pid] >= state.setup.skipsAllowed) return;
+    L.skipsUsed[pid]++;
+    if(!L.assignments[pid].isImposter){ const {word,cat}=pickWord(); L.roundWord=word; L.roundCategory=cat;
+      Object.keys(L.assignments).forEach(id=>{ if(!L.assignments[id].isImposter) L.assignments[id].word=word, L.assignments[id].category=cat; }); }
+    SFX.tick(); render();
+  },
+  'next-reveal': ()=>{
+    const L=state.local;
+    if(L.revealIndex < L.revealOrder.length-1){ L.revealIndex++; L.revealed=false; render(); }
+    else { state.ui.timerLeft = state.setup.discussionSeconds; setScreen('discuss'); }
+  },
+  'skip-turn': (d)=>{ const L=state.local; if(L.skipsUsed[d.id] < state.setup.skipsAllowed){ L.skipsUsed[d.id]++; actions['advance-turn'](); } },
+  'advance-turn': ()=>{ const L=state.local; L.turnIndex = (L.turnIndex+1) % L.turnOrder.length; SFX.select(); render(); },
+  'go-vote': ()=>{ if(state.ui.timerHandle){ clearInterval(state.ui.timerHandle); state.ui.timerHandle=null; } setScreen('vote'); },
+  'pick-vote': (d)=>{ const L=state.local; const voterId=L.voteOrder[L.voteIndex]; L.votes[voterId]=d.target; SFX.select(); render(); },
+  'confirm-vote': ()=>{ state.local.voteIndex++; render(); },
+  'play-again': ()=>{ assignLocalRound(); SFX.select(); setScreen('reveal'); },
+
+  'toggle-sound': ()=>{ state.settings.sound=!state.settings.sound; lsSet('settings',state.settings); render(); },
+  'toggle-haptics': ()=>{ state.settings.haptics=!state.settings.haptics; lsSet('settings',state.settings); render(); },
+
+  'edit-newpack-name': (d,e)=>{ state.ui.newPackName = e.target.value; },
+  'edit-newpack-words': (d,e)=>{ state.ui.newPackWords = e.target.value; },
+  'save-custom-pack': ()=>{
+    const name = state.ui.newPackName.trim(); const words = state.ui.newPackWords.split(',').map(w=>w.trim()).filter(Boolean);
+    if(!name || words.length<8){ toast('Name it, and add at least 8 words'); return; }
+    state.customPacks.push({id:'custom_'+Date.now(), name, words}); lsSet('customPacks', state.customPacks);
+    state.ui.newPackName=''; state.ui.newPackWords=''; toast('Pack saved'); render();
+  },
+  'delete-pack': (d)=>{ state.customPacks = state.customPacks.filter(c=>c.id!==d.id); state.setup.packKeys = state.setup.packKeys.filter(k=>k!==d.id); lsSet('customPacks', state.customPacks); render(); },
+  'genre-topic': (d,e)=>{ state.ui.genreTopic = e.target.value; },
+  'generate-pack': async ()=>{
+    const topic = state.ui.genreTopic.trim(); if(!topic){ toast('Type a theme first'); return; }
+    if(!state.online.sampleCap){ toast('AI generation needs a moment to connect — try again'); await initOnlineCaps(); if(!state.online.sampleCap){ toast('AI pack generation is unavailable right now'); return; } }
+    state.ui.genLoading=true; render();
+    try{
+      const result = await state.online.sampleCap.json(
+        `Generate a word-guessing party game pack themed "${topic}". Return ONLY JSON: {"name": "short pack name", "words": [18 to 24 short guessable nouns or phrases related to the theme, 1-3 words each, no duplicates, family friendly]}`
+      );
+      if(result && Array.isArray(result.words) && result.words.length>=6){
+        state.customPacks.push({id:'custom_'+Date.now(), name: result.name || topic, words: result.words});
+        lsSet('customPacks', state.customPacks);
+        toast('Pack generated: '+(result.name||topic));
+      } else toast('Could not generate a pack — try a different theme');
+    }catch(e){ toast('Generation failed — try again'); }
+    state.ui.genLoading=false; state.ui.genreTopic=''; render();
+  },
+
+  /* ---- Online ---- */
+  'edit-join-code': (d,e)=>{ state.online.joinCodeInput = e.target.value.toUpperCase().slice(0,4); },
+  'create-room': async ()=>{ await ensureOnlineReady(async ()=>{
+      state.online.busy=true; render();
+      const code = roomCodeGen();
+      try{
+        await state.online.dbCap.doc('rooms/'+code).set({ hostId: state.online.uid, phase:'lobby', round:0,
+          packKeys: DEFAULT_PACKS.slice(), imposterCount:1, doubleAgent:false, createdAt: Date.now(), votes:{} });
+        await state.online.dbCap.doc('rooms/'+code+'/players/'+state.online.uid).set({ uid: state.online.uid, name: await myDisplayName(), joinedAt: Date.now() });
+        state.online.roomCode = code; state.online.isHost = true;
+        subscribeRoom(code); setScreen('lobby');
+      }catch(e){ toast('Could not create a room right now'); }
+      state.online.busy=false; render();
+  }); },
+  'join-room': async ()=>{ await ensureOnlineReady(async ()=>{
+      const code = state.online.joinCodeInput.trim().toUpperCase();
+      if(code.length!==4){ toast('Enter the 4-character code'); return; }
+      state.online.busy=true; render();
+      try{
+        const doc = await state.online.dbCap.doc('rooms/'+code).get();
+        if(!doc || !doc.exists){ toast('Room not found'); state.online.busy=false; render(); return; }
+        await state.online.dbCap.doc('rooms/'+code+'/players/'+state.online.uid).set({ uid: state.online.uid, name: await myDisplayName(), joinedAt: Date.now() });
+        state.online.roomCode = code; state.online.isHost = false;
+        subscribeRoom(code); setScreen('lobby');
+      }catch(e){ toast('Could not join that room'); }
+      state.online.busy=false; render();
+  }); },
+  'leave-room': ()=>{ cleanupRoomSubs(); state.online.roomCode=null; state.online.players=[]; state.online.roomDoc=null; setScreen('online'); },
+  'online-toggle-pack': async (d)=>{ if(!state.online.isHost) return; const rd=state.online.roomDoc; const keys=(rd.packKeys||[]).slice(); const i=keys.indexOf(d.key); if(i>-1) keys.splice(i,1); else keys.push(d.key); await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({packKeys:keys}); },
+  'online-imp-inc': async ()=>{ if(!state.online.isHost) return; const n=Math.min(3,(state.online.roomDoc.imposterCount||1)+1); await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({imposterCount:n}); },
+  'online-imp-dec': async ()=>{ if(!state.online.isHost) return; const n=Math.max(1,(state.online.roomDoc.imposterCount||1)-1); await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({imposterCount:n}); },
+  'online-toggle-double': async ()=>{ if(!state.online.isHost) return; await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({doubleAgent: !state.online.roomDoc.doubleAgent}); },
+  'online-start-round': async ()=>{
+    if(!state.online.isHost) return;
+    const rd = state.online.roomDoc; const players = state.online.players;
+    if(players.length<3){ toast('Need at least 3 players'); return; }
+    const keys = (rd.packKeys&&rd.packKeys.length)?rd.packKeys:DEFAULT_PACKS;
+    const pool=[]; keys.forEach(k=>{ const p=PACKS[k]; if(p) pool.push(...p.words.map(w=>({word:w,cat:p.name}))); });
+    const {word,cat} = pool.length? pool[Math.floor(Math.random()*pool.length)] : {word:'Coffee',cat:'Default'};
+    const impCount = Math.min(rd.imposterCount||1, players.length-1);
+    const shuffledIds = shuffled(players.map(p=>p.uid));
+    const imposterIds = shuffledIds.slice(0,impCount);
+    const round = (rd.round||0)+1;
+    try{
+      for(const p of players){
+        const isImp = imposterIds.includes(p.uid);
+        await state.online.dbCap.doc('rooms/'+state.online.roomCode+'/assignments/'+p.uid).set({
+          isImposter:isImp, word:isImp?null:word, category:cat, round,
+          partnerNames: (isImp && rd.doubleAgent) ? imposterIds.filter(id=>id!==p.uid).map(id=>(players.find(x=>x.uid===id)||{}).name).filter(Boolean) : []
+        });
+      }
+      await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({ phase:'reveal', round, votes:{}, imposterIds, roundWord:word, roundCategory:cat });
+      setScreen('onlineReveal');
+    }catch(e){ toast('Could not start the round'); }
+  },
+  'reveal-online-word': ()=>{ state.ui.onlineRevealed=true; SFX.reveal(); haptic([30]); render(); },
+  'online-go-vote': async ()=>{ if(!state.online.isHost) return; await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({phase:'vote', votes:{}}); },
+  'online-pick-vote': async (d)=>{
+    const votes = Object.assign({}, state.online.roomDoc.votes||{}); votes[state.online.uid]=d.target;
+    try{ await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({votes}); SFX.select(); }catch(e){}
+  },
+  'online-finish-vote': async ()=>{
+    if(!state.online.isHost) return;
+    const rd = state.online.roomDoc; const votes = rd.votes||{};
+    const tally={}; Object.values(votes).forEach(t=>tally[t]=(tally[t]||0)+1);
+    const maxV = Math.max(0,...Object.values(tally));
+    const accused = Object.keys(tally).filter(id=>tally[id]===maxV);
+    const imposterIds = rd.imposterIds||[];
+    const crewWon = imposterIds.length===1 ? (accused.length===1 && imposterIds.includes(accused[0])) : (imposterIds.every(id=>accused.includes(id)) && accused.length===imposterIds.length);
+    const imposterNames = imposterIds.map(id=>(state.online.players.find(p=>p.uid===id)||{}).name).filter(Boolean);
+    try{
+      await state.online.dbCap.doc('rooms/'+state.online.roomCode).update({ phase:'results', lastResult:{crewWon, word: rd.roundWord, imposterNames} });
+    }catch(e){ toast('Could not tally votes'); }
+  },
+};
+
+/* ============================== ONLINE PLUMBING ============================== */
+async function myDisplayName(){
+  try{
+    if(state.online.userCap){ const me = state.online.uid || await state.online.userCap.me(); const prof = await state.online.userCap.profiles([me]); return (prof[me] && prof[me].name) || 'Player'; }
+  }catch(e){}
+  return 'Player';
+}
+async function initOnlineCaps(){
+  try{
+    state.online.dbCap = state.online.dbCap || await claude.use('db');
+    state.online.userCap = state.online.userCap || await claude.use('user');
+    state.online.sampleCap = state.online.sampleCap || await claude.use('sample');
+    if(state.online.userCap && !state.online.uid){ state.online.uid = await state.online.userCap.me(); }
+  }catch(e){}
+}
+async function ensureOnlineReady(fn){
+  await initOnlineCaps();
+  if(!state.online.dbCap || !state.online.uid){ toast('Online play needs this artifact to be open in Claude with sign-in.'); return; }
+  await fn();
+}
+function cleanupRoomSubs(){ state.online.unsub.forEach(u=>{ try{u();}catch(e){} }); state.online.unsub=[]; }
+function subscribeRoom(code){
+  cleanupRoomSubs();
+  try{
+    const u1 = state.online.dbCap.doc('rooms/'+code).onSnapshot(doc=>{
+      state.online.roomDoc = doc && doc.data ? doc.data() : doc;
+      routeOnlinePhase();
+    });
+    const u2 = state.online.dbCap.collection('rooms/'+code+'/players').onSnapshot(snap=>{
+      state.online.players = (snap.docs||[]).map(d=> d.data ? d.data() : d);
+      if(state.screen==='lobby') render();
+    });
+    const u3 = state.online.dbCap.doc('rooms/'+code+'/assignments/'+state.online.uid).onSnapshot(doc=>{
+      state.online.myAssignment = doc && doc.data ? doc.data() : doc;
+      if(state.screen==='onlineReveal') render();
+    });
+    state.online.unsub.push(u1,u2,u3);
+  }catch(e){ toast('Live sync unavailable right now'); }
+}
+function routeOnlinePhase(){
+  const rd = state.online.roomDoc; if(!rd) return;
+  if(rd.phase==='reveal' && state.screen!=='onlineReveal'){ state.ui.onlineRevealed=false; setScreen('onlineReveal'); }
+  else if(rd.phase==='vote' && state.screen!=='onlineVote'){ setScreen('onlineVote'); }
+  else if(rd.phase==='results' && state.screen!=='onlineResults'){ setScreen('onlineResults'); }
+  else render();
+}
+
+/* ============================== EVENT DELEGATION ============================== */
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-action]'); if(!el) return;
+  const act = actions[el.dataset.action]; if(act) act(el.dataset, e);
+});
+document.addEventListener('input', (e)=>{
+  const el = e.target.closest('[data-action]'); if(!el) return;
+  if(el.dataset.action==='edit-player'){ const p = state.setup.players.find(x=>x.id===el.dataset.id); if(p) p.name = e.target.value; return; }
+  const act = actions[el.dataset.action]; if(act) act(el.dataset, e);
+});
+
+/* ============================== NEARBY PLAY (WiFi + Bluetooth) ============================== */
+/* The host machine runs server.js. This page talks to it over WiFi (SSE + POST) or Bluetooth (GATT).
+   The server owns the game and sends each player only their own card; this code just renders `view`. */
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const BLE = { SERVICE:'6f1d0001-7a3b-4c2e-9b8a-5d4e3f2a1b0c', RX:'6f1d0002-7a3b-4c2e-9b8a-5d4e3f2a1b0c', TX:'6f1d0003-7a3b-4c2e-9b8a-5d4e3f2a1b0c' };
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function nCid(){
+  let id=null; try{ id=sessionStorage.getItem('imposter_cid'); }catch(e){}
+  if(!id){ id='c'+Array.from(crypto.getRandomValues(new Uint8Array(9)),b=>b.toString(16).padStart(2,'0')).join(''); try{ sessionStorage.setItem('imposter_cid',id); }catch(e){} }
+  return id;
+}
+state.nearby = {
+  name: lsGet('nearby_name',''), addr: lsGet('nearby_addr',''), mode: lsGet('nearby_mode','wifi'),
+  joinCode:'', cid:nCid(),
+  net:null, transport:null, status:'idle', connecting:false, info:null, probePromise:null, lan:[],
+  view:null, offset:0, revealed:false, revealedRound:0, loggedRound:0, peek:false, tick:null
+};
+
+/* ---------- Bluetooth framing (same scheme as server.js) ---------- */
+function bleFrames(text, payload, tag){
+  const data=new TextEncoder().encode(text); const n=Math.max(1,Math.ceil(data.length/payload)); const out=[];
+  for(let i=0;i<n;i++){
+    const chunk=data.subarray(i*payload,(i+1)*payload); const f=new Uint8Array(3+chunk.length);
+    f[0]=(i===0?2:0)|(i===n-1?1:0); f[1]=(tag>>8)&255; f[2]=tag&255; f.set(chunk,3); out.push(f);
+  }
+  return out;
+}
+class BleAssembler{
+  constructor(){ this.cur=new Map(); }
+  push(u8){
+    if(u8.length<3) return null;
+    const flags=u8[0], tag=(u8[1]<<8)|u8[2]; const body=u8.subarray(3);
+    let parts=this.cur.get(tag);
+    if(flags&2){ parts=[]; this.cur.set(tag,parts); } else if(!parts) return null;
+    parts.push(body);
+    if(flags&1){
+      this.cur.delete(tag); let len=0; parts.forEach(p=>len+=p.length);
+      const all=new Uint8Array(len); let o=0; parts.forEach(p=>{ all.set(p,o); o+=p.length; });
+      return { tag, text:new TextDecoder().decode(all) };
+    }
+    return null;
+  }
+}
+
+/* ---------- Transport: WiFi ---------- */
+class WifiNet{
+  constructor(base, cid, on){ this.base=base.replace(/\/+$/,''); this.cid=cid; this.on=on; this.es=null; this.q=Promise.resolve(); this.closed=false; }
+  connect(){
+    return new Promise((resolve,reject)=>{
+      let opened=false;
+      const es=this.es=new EventSource(this.base+'/events?cid='+encodeURIComponent(this.cid));
+      const timer=setTimeout(()=>{ if(!opened){ es.close(); reject(new Error('Timed out reaching the server')); } },7000);
+      es.onmessage=(ev)=>{
+        let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+        if(!opened && m.t==='hello'){ opened=true; clearTimeout(timer); resolve(m); }
+        this.on.message(m);
+      };
+      es.onerror=()=>{
+        if(!opened){ clearTimeout(timer); es.close(); reject(new Error('Could not reach the game server')); }
+        else if(!this.closed){ this.on.status('reconnecting'); }
+      };
+      es.onopen=()=>{ if(opened && !this.closed) this.on.status('connected'); };
+    });
+  }
+  send(msg){
+    const body=JSON.stringify(msg);
+    this.q=this.q.then(()=>fetch(this.base+'/send?cid='+encodeURIComponent(this.cid),{method:'POST',headers:{'Content-Type':'text/plain'},body})
+      .then(r=>{ if(!r.ok) throw new Error('send failed'); }))
+      .catch(()=>this.on.error('Lost connection to the server — retrying…'));
+    return this.q;
+  }
+  close(){ this.closed=true; try{ this.es.close(); }catch(e){} }
+}
+
+/* ---------- Transport: Bluetooth (Web Bluetooth -> host machine) ---------- */
+class BleNet{
+  constructor(cid, on){
+    this.cid=cid; this.on=on; this.dev=null; this.rx=null; this.tx=null; this.asm=new BleAssembler();
+    this.tag=1+Math.floor(Math.random()*65533); this.q=Promise.resolve(); this.closed=false; this.relinking=false;
+    this.pingT=null; this.lastPong=0; this.helloWait=null;
+    this._onValue=this._onValue.bind(this);
+  }
+  async connect(){
+    this.dev=await navigator.bluetooth.requestDevice({ filters:[{services:[BLE.SERVICE]}] });
+    this.dev.addEventListener('gattserverdisconnected',()=>this._dropped());
+    return this._link();
+  }
+  async _link(){
+    this.asm=new BleAssembler();
+    const server=await this.dev.gatt.connect();
+    const svc=await server.getPrimaryService(BLE.SERVICE);
+    this.rx=await svc.getCharacteristic(BLE.RX); this.tx=await svc.getCharacteristic(BLE.TX);
+    this.tx.removeEventListener('characteristicvaluechanged',this._onValue);
+    this.tx.addEventListener('characteristicvaluechanged',this._onValue);
+    const gotHello=new Promise((res,rej)=>{ this.helloWait={res,rej}; setTimeout(()=>rej(new Error('The host did not answer over Bluetooth')),10000); });
+    gotHello.catch(()=>{});
+    await this.tx.startNotifications();   // host answers with a {t:'sub'} greeting as soon as we subscribe
+    const hello=await gotHello;
+    this._startPing();
+    return hello;
+  }
+  _onValue(e){
+    const dv=e.target.value; const r=this.asm.push(new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength)); if(!r) return;
+    let m; try{ m=JSON.parse(r.text); }catch(_){ return; }
+    if(m.t==='sub'){ this._write({t:'hello',sub:m.sub,cid:this.cid}); return; }
+    if(m.t==='pong'){ this.lastPong=Date.now(); return; }
+    if(m.t==='hello' && this.helloWait){ this.helloWait.res(m); this.helloWait=null; }
+    this.on.message(m);
+  }
+  _write(msg){
+    const frames=bleFrames(JSON.stringify(msg),96,this.tag);
+    this.q=this.q.then(async()=>{ for(const f of frames){ if(this.rx.writeValueWithResponse) await this.rx.writeValueWithResponse(f); else await this.rx.writeValue(f); } })
+      .catch(()=>this.on.error('Bluetooth write failed'));
+    return this.q;
+  }
+  send(msg){ return this._write(msg); }
+  _startPing(){
+    clearInterval(this.pingT); this.lastPong=Date.now();
+    this.pingT=setInterval(()=>{
+      if(this.closed) return;
+      if(Date.now()-this.lastPong>25000){ try{ this.dev.gatt.disconnect(); }catch(e){} return; }   // host stopped answering -> re-link
+      this._write({t:'ping'});
+    },8000);
+  }
+  async _dropped(){
+    if(this.closed || this.relinking) return; this.relinking=true; clearInterval(this.pingT); this.on.status('reconnecting');
+    for(let i=0;i<4 && !this.closed;i++){
+      await sleep(1500*(i+1));
+      try{ await this._link(); this.relinking=false; this.on.status('connected'); return; }catch(e){}
+    }
+    this.relinking=false; if(!this.closed){ this.on.status('lost'); this.on.error('Bluetooth connection lost'); }
+  }
+  close(){ this.closed=true; clearInterval(this.pingT); try{ this.dev && this.dev.gatt.disconnect(); }catch(e){} }
+}
+
+/* ---------- glue ---------- */
+const N_ROOM_SCREENS=['nLobby','nReveal','nDiscuss','nVote','nResults'];
+function nConnected(){ const n=state.nearby; return !!n.net && (n.status==='connected'||n.status==='reconnecting'); }
+function nBleProblem(){
+  if(typeof navigator==='undefined' || !navigator.bluetooth){
+    return window.isSecureContext===false
+      ? 'Bluetooth needs a secure page — open this game over https:// or from localhost.'
+      : 'This browser has no Web Bluetooth. Use Chrome on Android or desktop (not iPhone Safari).';
+  }
+  return '';
+}
+function nNormalizeAddr(a){ a=(a||'').trim(); if(!a) return ''; if(!/^https?:\/\//i.test(a)) a='http://'+a; return a.replace(/\/+$/,''); }
+function nProbe(){
+  const n=state.nearby; if(n.probePromise) return n.probePromise;
+  n.probePromise=(async()=>{
+    if(!/^https?:$/.test(location.protocol)) return;
+    try{
+      const r=await fetch('/info',{cache:'no-store'}); const j=await r.json();
+      if(j && j.app==='imposter-nearby'){ n.info=j; n.lan=j.lan||[]; if(state.screen==='nearby') render(); }
+    }catch(e){}
+  })();
+  return n.probePromise;
+}
+function nOnStatus(s){
+  const n=state.nearby; n.status=s;
+  if(s==='lost'){ n.net=null; n.transport=null; n.view=null; if(N_ROOM_SCREENS.includes(state.screen)){ setScreen('nearby'); return; } }
+  if(state.screen==='nearby' || N_ROOM_SCREENS.includes(state.screen)) render();
+}
+function nOnMessage(m){
+  const n=state.nearby;
+  if(m.t==='hello'){ if(m.serverNow) n.offset=m.serverNow-Date.now(); if(m.lan&&m.lan.length) n.lan=m.lan; n.status='connected'; return; }
+  if(m.t==='state'){ n.view=m.view; if(m.view&&m.view.serverNow) n.offset=m.view.serverNow-Date.now(); nRoute(); return; }
+  if(m.t==='error'){ toast(m.msg); return; }
+}
+function nLogResult(v){
+  if(!v.card) return;   // joined after the round started: not part of it
+  const r=v.result; state.stats.games++; if(r.crewWon) state.stats.crewWins++; else state.stats.imposterWins++;
+  pushHistory({date:Date.now(), pack:r.category, word:r.word, crewWon:r.crewWon, imposters:r.imposters});
+}
+function nRoute(){
+  const n=state.nearby, v=n.view;
+  if(!v){
+    if(N_ROOM_SCREENS.includes(state.screen)) setScreen('nearby'); else if(state.screen==='nearby') render();
+    return;
+  }
+  if(v.phase==='reveal' && v.round!==n.revealedRound){ n.revealed=false; n.peek=false; n.revealedRound=v.round; }
+  if(v.phase==='results' && v.result && n.loggedRound!==v.round){ n.loggedRound=v.round; nLogResult(v); }
+  const target={lobby:'nLobby',reveal:'nReveal',discuss:'nDiscuss',vote:'nVote',results:'nResults'}[v.phase]||'nLobby';
+  if(state.screen!==target){
+    if(target==='nReveal'){ SFX.select(); haptic([30]); }
+    else if(target==='nVote'){ SFX.warn(); haptic([80,60,80]); }
+    else if(target==='nResults' && v.result){ v.result.crewWon?SFX.correct():SFX.wrong(); haptic(v.result.crewWon?[40,40,40]:[200]); }
+    setScreen(target);
+  } else render();
+}
+function nSend(msg){ const n=state.nearby; if(!n.net){ toast('Not connected'); return; } n.net.send(msg); }
+function nName(){ const nm=(state.nearby.name||'').trim(); if(!nm) toast('Enter your name first'); return nm; }
+function nSendSettings(patch){
+  const s=state.nearby.view.settings;
+  const next=Object.assign({packKeys:s.packKeys,imposterCount:s.imposterCount,doubleAgent:s.doubleAgent,discussionSeconds:s.discussionSeconds},patch);
+  next.custom=state.customPacks.filter(c=>next.packKeys.includes(c.id)).map(c=>({id:c.id,name:c.name,words:c.words}));
+  next.t='settings'; nSend(next);
+}
+async function nConnectWifi(){
+  const n=state.nearby; if(n.connecting) return;
+  if(!n.info) await nProbe();
+  const base=n.info?location.origin:nNormalizeAddr(n.addr);
+  if(!base){ toast('Type the address shown on the host machine'); return; }
+  if(location.protocol==='https:' && base.startsWith('http:') && base!==location.origin){ toast('This page is https but the server is http — open the server address directly on this device.'); return; }
+  n.connecting=true; render();
+  const net=new WifiNet(base,n.cid,{message:nOnMessage,status:nOnStatus,error:m=>toast(m)});
+  n.net=net; n.transport='wifi';
+  try{ await net.connect(); n.status='connected'; if(!n.info){ lsSet('nearby_addr',n.addr); } }
+  catch(e){ net.close(); n.net=null; n.transport=null; n.status='idle'; toast(e.message||'Could not connect'); }
+  n.connecting=false; render();
+}
+async function nConnectBle(){
+  const n=state.nearby; if(n.connecting) return;
+  const why=nBleProblem(); if(why){ toast(why); return; }
+  n.connecting=true; render();
+  const net=new BleNet(n.cid,{message:nOnMessage,status:nOnStatus,error:m=>toast(m)});
+  n.net=net; n.transport='ble';
+  try{ await net.connect(); n.status='connected'; }
+  catch(e){ net.close(); n.net=null; n.transport=null; n.status='idle'; toast(e&&e.name==='NotFoundError'?'No device picked':(e.message||'Bluetooth connection failed')); }
+  n.connecting=false; render();
+}
+function nDisconnect(){
+  const n=state.nearby; if(n.net){ try{ n.net.send({t:'leave'}); }catch(e){} setTimeout(()=>{ try{ n.net&&n.net.close(); }catch(e){} n.net=null; },150); }
+  n.transport=null; n.status='idle'; n.view=null;
+}
+function nBar(label){
+  const n=state.nearby; const t=n.transport==='ble'?'BLUETOOTH':'WIFI'; const ok=n.status==='connected';
+  return `<div class="filebar"><span>${label}</span><span class="tag ${ok?'net-ok':'net-bad'}">${ok?'●':'○'} ${t}${ok?'':(n.status==='reconnecting'?' · reconnecting…':' · offline')}</span></div>`;
+}
+function nCardHtml(v, hiddenAction){
+  const a=v.card; const n=state.nearby;
+  if(!a) return `<div class="reveal-card"><div class="hidden-hint">You joined after this round started — you'll get a card next round.</div></div>`;
+  const shown = hiddenAction==='reveal' ? n.revealed : n.peek;
+  return `<div class="reveal-card">
+    ${!shown?`<div class="blur-veil" data-action="${hiddenAction==='reveal'?'n-reveal':'n-peek'}"><div class="icon">◇</div><div class="txt">Tap to view your word</div></div>`:''}
+    <div class="stamp ${a.isImposter?'imposter':'crew'}">${a.isImposter?'You are the imposter':'You are on the crew'}</div>
+    ${a.isImposter?`
+      <div class="hidden-hint">You don't get the word. Listen closely, blend in, and try to guess it before you're caught.</div>
+      ${a.partnerNames&&a.partnerNames.length?`<div class="hidden-hint" style="color:var(--gold);">Fellow imposter: ${a.partnerNames.map(esc).join(', ')}</div>`:''}
+    `:`<div class="word mono">${esc(a.word)}</div><div class="category">${esc(a.category)}</div>`}
+  </div>`;
+}
+function nTime(v){ const left=Math.max(0,Math.ceil((v.endsAt-(Date.now()+state.nearby.offset))/1000)); return {left, text:`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`}; }
+
+/* ---------- screens ---------- */
+SCREENS.nearby = () => {
+  const n=state.nearby; const conn=nConnected();
+  const bleWhy=nBleProblem();
+  const wifiPanel = n.info
+    ? `<p class="sub">✓ Found the game server that served this page.<br><span class="mono" style="color:var(--text-faint);font-size:12px;">${esc(location.host)}</span></p>`
+    : `<p class="sub">Type the address printed by the host machine, e.g. <span class="mono" style="color:var(--text);">192.168.1.20:3000</span> — everyone must be on the same WiFi or hotspot.</p>
+       <input type="text" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="192.168.1.20:3000" data-action="n-addr" value="${esc(n.addr)}" style="margin-bottom:12px;">`;
+  const blePanel = `<p class="sub">Pick the device called <b style="color:var(--text);">Imposter</b> — the machine running the game server. Works in Chrome on Android and desktop.</p>
+    ${bleWhy?`<div class="hidden-hint" style="color:var(--gold);max-width:none;margin-bottom:12px;">${esc(bleWhy)}</div>`:''}`;
+  return `
+  <button class="nav-back" data-action="go" data-screen="home">‹ Home</button>
+  <h2>Nearby Play</h2>
+  <p class="sub">Everyone plays on their own device over the same WiFi, or over Bluetooth. No accounts, no cloud.</p>
+  <div class="stack">
+    <div class="card">
+      <label class="field-label">Your name</label>
+      <input type="text" maxlength="16" placeholder="Name" autocomplete="off" data-action="n-name" value="${esc(n.name)}">
+    </div>
+    ${conn?`
+    <div class="card">
+      <div class="eyebrow-line">Connection</div>
+      <div class="result-line"><span class="k">${n.transport==='ble'?'Bluetooth':'WiFi'} · ${n.status==='connected'?'connected':'reconnecting…'}</span><button class="btn ghost small" data-action="n-disconnect">Disconnect</button></div>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Host a room</div>
+      <button class="btn primary" data-action="n-create" style="padding:14px;">Create room</button>
+    </div>
+    <div class="card">
+      <div class="eyebrow-line">Join a room</div>
+      <div class="row">
+        <input type="text" class="grow mono" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.2em;" data-action="n-code" value="${esc(n.joinCode)}">
+        <button class="btn teal small" data-action="n-join">Join</button>
+      </div>
+    </div>`:`
+    <div class="card">
+      <div class="eyebrow-line">Connect</div>
+      <div class="seg">
+        <button class="${n.mode==='wifi'?'on':''}" data-action="n-mode" data-mode="wifi">WiFi</button>
+        <button class="${n.mode==='ble'?'on':''}" data-action="n-mode" data-mode="ble">Bluetooth</button>
+      </div>
+      ${n.mode==='wifi'?wifiPanel:blePanel}
+      ${n.mode==='wifi'
+        ?`<button class="btn primary" data-action="n-connect-wifi" ${n.connecting?'disabled':''} style="padding:14px;">${n.connecting?'<span class="spin"></span> Connecting…':'Connect over WiFi'}</button>`
+        :`<button class="btn primary" data-action="n-connect-ble" ${(n.connecting||bleWhy)?'disabled':''} style="padding:14px;">${n.connecting?'<span class="spin"></span> Connecting…':'Scan for host'}</button>`}
+    </div>`}
+  </div>`;
+};
+
+SCREENS.nLobby = () => {
+  const n=state.nearby, v=n.view, host=v.me.isHost, st=v.settings;
+  const joinUrl = n.transport==='wifi' ? ((n.lan[0]||location.origin)+'/#room='+v.room) : '';
+  const packChips = Object.entries(PACKS).map(([k,p])=>[k,p.name]).concat(state.customPacks.map(c=>[c.id,c.name]))
+    .map(([k,name])=>`<div class="chip ${st.packKeys.includes(k)?'on':''}" data-action="n-toggle-pack" data-key="${esc(k)}">${esc(name)}</div>`).join('');
+  return `
+  ${nBar('ROOM')}
+  <div class="card raised center">
+    <div class="code-display">${esc(v.room)}</div>
+    ${joinUrl?`<div id="qr-box"></div><div class="mono" style="font-size:11px;color:var(--text-faint);margin-top:8px;word-break:break-all;">${esc(joinUrl)}</div>`:''}
+    <p class="sub" style="margin:8px 0 0;">${n.transport==='ble'?'Others: Nearby Play → connect → Join a room → enter this code.':'Scan the QR, or open Nearby Play and enter this code.'}</p>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Players (${v.players.length})</div>
+    <div class="stack">
+      ${v.players.map(p=>`<div class="online-player"><div class="avatar">${esc((p.name||'?')[0].toUpperCase())}</div>${esc(p.name)}
+        ${p.pid===v.me.pid?'<span class="you">YOU</span>':''}${p.isHost?'<span class="you" style="margin-left:6px;color:var(--gold);">HOST</span>':''}${!p.connected?'<span class="you" style="margin-left:6px;color:var(--red);">OFFLINE</span>':''}</div>`).join('')}
+    </div>
+  </div>
+  ${host?`
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Round settings</div>
+    <div class="chip-wrap">${packChips}</div>
+    <div class="toggle-row"><div><div class="lbl">Imposters</div></div><div class="stepper" style="width:110px;"><button data-action="n-imp-dec">−</button><div class="val">${st.imposterCount}</div><button data-action="n-imp-inc">+</button></div></div>
+    <div class="toggle-row"><div><div class="lbl">Double agent</div><div class="desc">Imposters secretly know each other</div></div><div class="switch ${st.doubleAgent?'on':''}" data-action="n-toggle-double"></div></div>
+    <div class="toggle-row"><div><div class="lbl">Discussion timer</div></div><div class="stepper" style="width:110px;"><button data-action="n-time-dec">−</button><div class="val">${st.discussionSeconds}s</div><button data-action="n-time-inc">+</button></div></div>
+    <button class="btn primary" style="margin-top:10px;padding:15px;" data-action="n-start" ${v.players.filter(p=>p.connected).length<3?'disabled':''}>${v.players.filter(p=>p.connected).length<3?'Need 3+ players':'Start round'}</button>
+  </div>`:`
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Round settings</div>
+    <div class="chip-wrap">${st.packNames.map(p=>`<div class="chip on" style="cursor:default;">${esc(p.name)}</div>`).join('')}</div>
+    <p class="sub" style="margin:12px 0 0;">${st.imposterCount} imposter${st.imposterCount>1?'s':''}${st.doubleAgent?' · double agent':''} · ${st.discussionSeconds}s discussion<br>Waiting for the host to start…</p>
+  </div>`}
+  <button class="btn ghost" style="margin-top:14px;" data-action="n-leave">Leave room</button>`;
+};
+AFTER_RENDER.nLobby = () => {
+  const box=document.getElementById('qr-box'), n=state.nearby;
+  if(box && window.QRCode && n.view && n.transport==='wifi'){
+    box.innerHTML='';
+    try{ new QRCode(box,{text:(n.lan[0]||location.origin)+'/#room='+n.view.room,width:132,height:132,colorDark:"#12131a",colorLight:"#ece8dc"}); }catch(e){}
+  }
+};
+
+SCREENS.nReveal = () => {
+  const n=state.nearby, v=n.view, host=v.me.isHost;
+  return `
+  ${nBar('YOUR CARD')}
+  <h2 style="text-align:center;">Round ${v.round}</h2>
+  <div class="reveal-wrap card raised" style="padding:0;">${nCardHtml(v,'reveal')}</div>
+  <p class="sub" style="text-align:center;margin-top:14px;">${v.seenCount} of ${v.players.length} have looked at their card.</p>
+  ${host?`<div class="stack">
+    <button class="btn primary" data-action="n-discuss" style="padding:15px;">Start discussion (${v.settings.discussionSeconds}s)</button>
+    <button class="btn ghost" data-action="n-open-vote">Skip to voting</button>
+  </div>`:`<div class="empty">Waiting for the host to start the discussion…</div>`}`;
+};
+
+SCREENS.nDiscuss = () => {
+  const n=state.nearby, v=n.view, host=v.me.isHost, t=nTime(v);
+  return `
+  ${nBar('DISCUSSION')}
+  <h2 style="text-align:center;">Describe your word — don't say it</h2>
+  <div class="card raised center" style="padding:26px 18px;">
+    <div class="timer-ring-wrap"><div class="timer-num ${t.left<=10?'warn':''}">${t.text}</div></div>
+    <p class="sub" style="margin:6px 0 0;">Go around in the order below — one clue each. Voting opens when the timer ends.</p>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="eyebrow-line">Speaking order</div>
+    <div class="order-list">${(v.turnOrder||[]).map((p,i)=>`<div class="order-item"><div class="dot"></div>${i+1}. ${esc(p.name)}${p.pid===v.me.pid?' (you)':''}</div>`).join('')}</div>
+  </div>
+  <div class="reveal-wrap card raised" style="padding:0;margin-top:14px;">${nCardHtml(v,'peek')}</div>
+  ${n.peek?`<button class="btn ghost small" style="margin-top:8px;width:100%;" data-action="n-peek">Hide my word</button>`:''}
+  ${host?`<button class="btn primary" style="margin-top:16px;padding:15px;" data-action="n-open-vote">Open voting now</button>`:''}`;
+};
+AFTER_RENDER.nDiscuss = () => {
+  const n=state.nearby; if(n.tick) return;
+  n.tick=setInterval(()=>{
+    const v=n.view;
+    if(state.screen!=='nDiscuss' || !v){ clearInterval(n.tick); n.tick=null; return; }
+    const t=nTime(v);
+    document.querySelectorAll('.timer-num').forEach(el=>{ el.textContent=t.text; el.classList.toggle('warn',t.left<=10); });
+  },500);
+};
+
+SCREENS.nVote = () => {
+  const n=state.nearby, v=n.view, host=v.me.isHost;
+  const choices=v.players.filter(p=>p.pid!==v.me.pid);
+  return `
+  ${nBar('VOTE')}
+  <h2 style="text-align:center;">Who's the imposter?</h2>
+  <p class="sub" style="text-align:center;">Tap a player. You can change your mind until everyone has voted.</p>
+  <div class="vote-grid">
+    ${choices.map(p=>`<div class="vote-card ${v.myVote===p.pid?'picked':''}" data-action="n-vote" data-target="${esc(p.pid)}">${esc(p.name)}</div>`).join('')}
+  </div>
+  <p class="sub" style="text-align:center;margin-top:14px;">${v.votedCount} / ${v.players.length} voted</p>
+  ${host?`<button class="btn primary" style="padding:15px;" data-action="n-finish">Reveal results now</button>`:''}`;
+};
+
+SCREENS.nResults = () => {
+  const n=state.nearby, v=n.view, host=v.me.isHost, r=v.result||{};
+  return `
+  ${nBar('RESULTS')}
+  <h2 style="text-align:center;">${r.crewWon===undefined?'Tallying…':(r.crewWon?'The crew got it!':'The imposter got away')}</h2>
+  <div class="card raised" style="margin-top:8px;">
+    <div class="result-line"><span class="k">Secret word</span><span class="v mono">${esc(r.word||'—')}</span></div>
+    <div class="result-line"><span class="k">Imposter${(r.imposters||[]).length>1?'s':''}</span><span class="v">${(r.imposters||[]).map(esc).join(', ')}</span></div>
+    <div class="result-line"><span class="k">Most accused</span><span class="v">${(r.accused||[]).map(esc).join(', ')||'No votes'}</span></div>
+  </div>
+  ${(r.tally||[]).length?`<div class="card" style="margin-top:12px;"><div class="eyebrow-line">Votes</div>${r.tally.map(t=>`<div class="result-line"><span class="k">${esc(t.name)}</span><span class="v">${t.votes}</span></div>`).join('')}</div>`:''}
+  <div class="stack" style="margin-top:16px;">
+    ${host?`<button class="btn primary" style="padding:15px;" data-action="n-again">Play another round</button>
+            <button class="btn ghost" data-action="n-to-lobby">Back to lobby</button>`:`<div class="empty">Waiting for the host…</div>`}
+    <button class="btn ghost" data-action="n-leave">Leave room</button>
+  </div>`;
+};
+
+/* ---------- actions ---------- */
+Object.assign(actions, {
+  'go-nearby': ()=>{ const n=state.nearby; setScreen(n.view?'nLobby':'nearby'); if(n.view) nRoute(); nProbe(); },
+  'n-mode': (d)=>{ state.nearby.mode=d.mode; lsSet('nearby_mode',d.mode); render(); },
+  'n-name': (d,e)=>{ state.nearby.name=e.target.value; lsSet('nearby_name',state.nearby.name); },
+  'n-addr': (d,e)=>{ state.nearby.addr=e.target.value; },
+  'n-code': (d,e)=>{ state.nearby.joinCode=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4); },
+  'n-connect-wifi': ()=>nConnectWifi(),
+  'n-connect-ble': ()=>nConnectBle(),
+  'n-disconnect': ()=>{ nDisconnect(); setScreen('nearby'); },
+  'n-create': ()=>{ const nm=nName(); if(nm) nSend({t:'create',name:nm}); },
+  'n-join': ()=>{ const nm=nName(); if(!nm) return; const code=state.nearby.joinCode; if(code.length!==4){ toast('Enter the 4-character code'); return; } nSend({t:'join',code,name:nm}); },
+  'n-leave': ()=>{ nSend({t:'leave'}); state.nearby.view=null; setScreen('nearby'); },
+  'n-toggle-pack': (d)=>{ const s=state.nearby.view.settings; const keys=s.packKeys.slice(); const i=keys.indexOf(d.key); if(i>-1) keys.splice(i,1); else keys.push(d.key); nSendSettings({packKeys:keys}); },
+  'n-imp-inc': ()=>nSendSettings({imposterCount:Math.min(3,state.nearby.view.settings.imposterCount+1)}),
+  'n-imp-dec': ()=>nSendSettings({imposterCount:Math.max(1,state.nearby.view.settings.imposterCount-1)}),
+  'n-toggle-double': ()=>nSendSettings({doubleAgent:!state.nearby.view.settings.doubleAgent}),
+  'n-time-inc': ()=>nSendSettings({discussionSeconds:Math.min(300,state.nearby.view.settings.discussionSeconds+15)}),
+  'n-time-dec': ()=>nSendSettings({discussionSeconds:Math.max(15,state.nearby.view.settings.discussionSeconds-15)}),
+  'n-start': ()=>nSend({t:'start'}),
+  'n-reveal': ()=>{ const n=state.nearby; n.revealed=true; SFX.reveal(); haptic([30]); nSend({t:'seen'}); render(); },
+  'n-peek': ()=>{ state.nearby.peek=!state.nearby.peek; render(); },
+  'n-discuss': ()=>nSend({t:'discuss'}),
+  'n-open-vote': ()=>nSend({t:'openVote'}),
+  'n-vote': (d)=>{ SFX.select(); nSend({t:'vote',target:d.target}); },
+  'n-finish': ()=>nSend({t:'finish'}),
+  'n-again': ()=>nSend({t:'again'}),
+  'n-to-lobby': ()=>nSend({t:'toLobby'}),
+});
+
+/* Opened via a QR code (…/#room=ABCD)? Jump straight to Nearby Play with the code filled in. */
+(function(){
+  const m=/[#&]room=([A-Za-z0-9]{4})/.exec(location.hash||''); if(!m) return;
+  const n=state.nearby; n.joinCode=m[1].toUpperCase(); state.screen='nearby';
+  nProbe().then(async()=>{ if(n.info && !n.net){ await nConnectWifi(); if(n.net && (n.name||'').trim()) actions['n-join'](); } });
+})();
+
+/* init */
+initOnlineCaps();
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "imposter-nearby",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nearby (WiFi + Bluetooth) multiplayer server for Guess the Imposter",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:https": "node server.js --https"
+  },
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {
+    "@abandonware/bleno": "*"
+  }
+}
